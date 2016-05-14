@@ -8,28 +8,29 @@
 #include <tchar.h>
 #include <fstream>
 #include <vector>
+#include <cstring>
 
 
 using namespace std;
 
-vector<double> color_histogram_RGB(char* inputfnam, int grpnum_R, int grpnum_G, int grpnum_B);
+vector<double> color_histogram_RGB(CString inputfnam, int grpnum_R, int grpnum_G, int grpnum_B);
 
 int init_image(char* ouputfname) {
 	CFileFind files;
 	fstream output(ouputfname);
 	if (!output.is_open()) {cout << "Not found output file." << endl; return 1;}
-	char* input = "image\\*.JPEG";
+	CString input = "image\\*.JPEG";
 	BOOL res = files.FindFile(input);
 	int i = 0;
 	while(res)
 	{
 		i++;
 		res = files.FindNextFile();
-		input = "image\\" + files.getFileName();
+		input = "image\\" + files.GetFileName();
 		if(!files.IsDirectory() && !files.IsDots())//如果是文件
 		{
 			vector<double> feature_vector = color_histogram_RGB(input, 2, 2, 2);
-			for (auto each: feature_vector) output << each << ' ';
+			for (auto each: feature_vector) output << fixed << each << ' ';
 			output << endl;
 			cout << i << " file has done." << endl;
 		}
@@ -40,7 +41,7 @@ int init_image(char* ouputfname) {
 	return 0;
 }
 
-vector<double> color_histogram_RGB(char* inputfname, int grpnum_R, int grpnum_G, int grpnum_B) {
+vector<double> color_histogram_RGB(CString inputfname, int grpnum_R, int grpnum_G, int grpnum_B) {
 	CImage image;
 	
 
@@ -52,7 +53,7 @@ vector<double> color_histogram_RGB(char* inputfname, int grpnum_R, int grpnum_G,
 	if (256 % grpnum_G > 0) grpnum_G++;
 	if (256 % grpnum_B > 0) grpnum_B++;
 
-	vector<double> featrue(grpnum_R*grpnum_G*grpnum_B,0);
+	vector<double> feature(grpnum_R*grpnum_G*grpnum_B,0);
 	image.Load(inputfname);  
 
 	iHeight = image.GetHeight();
@@ -90,7 +91,7 @@ vector<double> color_histogram_RGB(char* inputfname, int grpnum_R, int grpnum_G,
 			g = byteG / range_g;
 			b = byteB / range_b;
 
-			featrue[r*grpnum_G*grpnum_B + g*grpnum_B + b] ++;
+			feature[r*grpnum_G*grpnum_B + g*grpnum_B + b] ++;
 
 			//printf("%Pixel at (%d,%d) is: R=0x%x,G=0x%x,B=0x%x\n",iRow, iCol, byteR, byteG, byteB);			
 		}
@@ -98,9 +99,11 @@ vector<double> color_histogram_RGB(char* inputfname, int grpnum_R, int grpnum_G,
 	image.GetBits();
 	image.Destroy();
 
-	//for (int i = 0; i <grpnum_R*grpnum_G*grpnum_B; i++) cout << featrue[i] << ' '; 
-	//getchar();
-	return featrue;
+	double total = 0;
+	for (auto each : feature) total += each;
+	cout << total << ' ';
+	for (int j = 0; j < grpnum_R*grpnum_G*grpnum_B; j++)  feature[j] /= total; 
+	return feature;
 }
 
 
@@ -112,7 +115,7 @@ int color_histogram_cluster_RGB() {
 
 int main()
 {
-	init_image("histgram.txt");
+	init_image("histogram.txt");
 	getchar();
 	return 0;
 }
