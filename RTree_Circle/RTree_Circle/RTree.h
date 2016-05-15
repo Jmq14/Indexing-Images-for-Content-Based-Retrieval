@@ -15,7 +15,7 @@ using namespace std;
 
 
 #define DIMENSION  9
-#define RADIUS     5000
+#define RADIUS     3000
 
 #define ASSERT assert // RTree uses ASSERT( condition )
 #ifndef Min
@@ -41,7 +41,7 @@ class RTFileStream;  // File I/O helper class, look below for implementation and
 
 
 /// \class RTree
-/// Implementation of RTree, a multidimensional bounding rectangle tree.
+/// Implementation of RTree, a multidimensional bounding circleangle tree.
 /// Example usage: For a 3-dimensional tree use RTree<Object*, float, 3> myTree;
 ///
 /// This modified, templated C++ version by Greg Douglas at Auran (http://www.auran.com)
@@ -51,7 +51,7 @@ class RTFileStream;  // File I/O helper class, look below for implementation and
 /// DIMENSION Number of dimensions such as 2 or 3
 /// ELEMTYPEREAL Type of element that allows fractional and large values such as float or double, for use in volume calcs
 ///
-/// NOTES: Inserting and removing data requires the knowledge of its constant Minimal Bounding Rectangle.
+/// NOTES: Inserting and removing data requires the knowledge of its constant Minimal Bounding Circleangle.
 ///        This version uses new/delete for nodes, I recommend using a fixed size allocator for efficiency.
 ///        Instead of using a callback function for returned results, I recommend and efficient pre-sized, grow-only memory
 ///        array similar to MFC CArray or STL Vector for returning search query result.
@@ -81,25 +81,25 @@ public:
 	virtual ~RTree();
 
 	/// Insert entry
-	/// \param a_min Min of bounding rect
-	/// \param a_max Max of bounding rect
+	/// \param a_min Min of bounding circle
+	/// \param a_max Max of bounding circle
 	/// \param a_dataId Positive Id of data.  Maybe zero, but negative numbers not allowed.
 	void Insert(const ELEMTYPE center[DIMENSION], const ELEMTYPE R, const DATATYPE& a_dataId);
 
 	/// Remove entry
-	/// \param a_min Min of bounding rect
-	/// \param a_max Max of bounding rect
+	/// \param a_min Min of bounding circle
+	/// \param a_max Max of bounding circle
 	/// \param a_dataId Positive Id of data.  Maybe zero, but negative numbers not allowed.
 	void Remove(const ELEMTYPE a_min[DIMENSION], const ELEMTYPE a_max[DIMENSION], const DATATYPE& a_dataId);
 
-	/// Find all within search rectangle
-	/// \param a_min Min of search bounding rect
-	/// \param a_max Max of search bounding rect
+	/// Find all within search circleangle
+	/// \param a_min Min of search bounding circle
+	/// \param a_max Max of search bounding circle
 	/// \param a_searchResult Search result array.  Caller should set grow size. Function will reset, not append to array.
 	/// \param a_resultCallback Callback function to return result.  Callback should return 'true' to continue searching
 	/// \param a_context User context to pass as parameter to a_resultCallback
 	/// \return Returns the number of entries found
-	int Search(const ELEMTYPE center[DIMENSION], const ELEMTYPE R, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context);
+	int Search(const ELEMTYPE center[DIMENSION], const ELEMTYPE R, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context);// 寻找距离搜索点R+RADIUS以内的点
 
 	/// Remove all entries from tree
 	void RemoveAll();
@@ -172,8 +172,8 @@ public:
 
 			for(int index = 0; index < DIMENSION; ++index)
 			{
-				a_min[index] = curBranch.m_rect.m_min[index];
-				a_max[index] = curBranch.m_rect.m_max[index];
+				a_min[index] = curBranch.m_circle.m_min[index];
+				a_max[index] = curBranch.m_circle.m_max[index];
 			}
 		}
 
@@ -282,8 +282,8 @@ public:
 
 protected:
 
-	/// Minimal bounding rectangle (n-dimensional)
-	struct Rect
+	/// Minimal bounding circleangle (n-dimensional)
+	struct Circle
 	{
 		ELEMTYPE center[DIMENSION];
 		ELEMTYPE R;
@@ -294,7 +294,7 @@ protected:
 	/// If the parents level is 0, then this is data
 	struct Branch
 	{
-		Rect m_rect;                                  ///< Bounds
+		Circle m_circle;                                  ///< Bounds
 		union
 		{
 			Node* m_child;                              ///< Child node
@@ -323,48 +323,48 @@ protected:
 	/// Variables for finding a split partition
 	struct PartitionVars
 	{
-		int m_partition[MAXNODES+1];
+		int m_partition[MAXNODES+1]; //记录各节点分组情况
 		int m_total;
 		int m_minFill;
-		int m_taken[MAXNODES+1];
-		int m_count[2];
-		Rect m_cover[2];
-		ELEMTYPEREAL m_area[2];
+		int m_taken[MAXNODES+1]; //记录某节点是否已被分组
+		int m_count[2]; //某一组cover的矩形个数
+		Circle m_cover[2]; //某一组cover的矩形
+		ELEMTYPEREAL m_area[2]; //某一组cover的矩形面积
 
-		Branch m_branchBuf[MAXNODES+1];
-		int m_branchCount;
-		Rect m_coverSplit;
-		ELEMTYPEREAL m_coverSplitArea;
+		Branch m_branchBuf[MAXNODES+1]; //节点branch缓存区
+		int m_branchCount; //结点个数
+		Circle m_coverSplit; //包括branch本身在内的矩形的大矩形
+		ELEMTYPEREAL m_coverSplitArea; //m_coverSplit的面积
 	}; 
 
 	Node* AllocNode();
 	void FreeNode(Node* a_node);
 	void InitNode(Node* a_node);
-	void InitRect(Rect* a_rect);
-	bool InsertRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
-	bool InsertRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root, int a_level);
-	Rect NodeCover(Node* a_node);
+	void InitCircle(Circle* a_circle);
+	bool InsertCircleRec(Circle* a_circle, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
+	bool InsertCircle(Circle* a_circle, const DATATYPE& a_id, Node** a_root, int a_level);
+	Circle NodeCover(Node* a_node);
 	bool AddBranch(Branch* a_branch, Node* a_node, Node** a_newNode);
 	void DisconnectBranch(Node* a_node, int a_index);
-	int PickBranch(Rect* a_rect, Node* a_node);
-	Rect CombineRect(Rect* a_rectA, Rect* a_rectB);
+	int PickBranch(Circle* a_circle, Node* a_node);
+	Circle CombineCircle(Circle* a_circleA, Circle* a_circleB);
 	void SplitNode(Node* a_node, Branch* a_branch, Node** a_newNode);
-	ELEMTYPEREAL RectSphericalVolume(Rect* a_rect);
-	ELEMTYPEREAL RectVolume(Rect* a_rect);
-	ELEMTYPEREAL CalcRectVolume(Rect* a_rect);
+	ELEMTYPEREAL CircleSphericalVolume(Circle* a_circle);
+	ELEMTYPEREAL CircleVolume(Circle* a_circle);
+	ELEMTYPEREAL CalcCircleVolume(Circle* a_circle);
 	void GetBranches(Node* a_node, Branch* a_branch, PartitionVars* a_parVars);
 	void ChoosePartition(PartitionVars* a_parVars, int a_minFill);
 	void LoadNodes(Node* a_nodeA, Node* a_nodeB, PartitionVars* a_parVars);
-	void InitParVars(PartitionVars* a_parVars, int a_maxRects, int a_minFill);
+	void InitParVars(PartitionVars* a_parVars, int a_maxCircles, int a_minFill);
 	void PickSeeds(PartitionVars* a_parVars);
 	void Classify(int a_index, int a_group, PartitionVars* a_parVars);
-	bool RemoveRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root);
-	bool RemoveRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode);
+	bool RemoveCircle(Circle* a_circle, const DATATYPE& a_id, Node** a_root);
+	bool RemoveCircleRec(Circle* a_circle, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode);
 	ListNode* AllocListNode();
 	void FreeListNode(ListNode* a_listNode);
-	bool Overlap(Rect* a_rectA, Rect* a_rectB);
+	bool Overlap(Circle* a_circleA, Circle* a_circleB);
 	void ReInsert(Node* a_node, ListNode** a_listNode);
-	bool Search(Node* a_node, Rect* a_rect, int& a_foundCount, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context);
+	bool Search(Node* a_node, Circle* a_circle, int& a_foundCount, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context);
 	void RemoveAllRec(Node* a_node);
 	void Reset();
 	void CountRec(Node* a_node, int& a_count);
@@ -494,16 +494,16 @@ RTREE_TEMPLATE
 	void RTREE_QUAL::Insert(const ELEMTYPE center[DIMENSION], const ELEMTYPE R, const DATATYPE& a_dataId)
 {
 
-	Rect rect;
+	Circle circle;
 
-	rect.R = R;
+	circle.R = R;
 
-	for(int axis=0; axis<DIMENSION; ++axis)
+	for(int axis = 0; axis < DIMENSION; ++axis)
 	{
-		rect.center[axis] = center[axis];
+		circle.center[axis] = center[axis];
 	}
 
-	InsertRect(&rect, a_dataId, &m_root, 0);
+	InsertCircle(&circle, a_dataId, &m_root, 0);
 }
 
 
@@ -517,34 +517,34 @@ RTREE_TEMPLATE
 	}
 #endif //_DEBUG
 
-	Rect rect;
+	Circle circle;
 
 	for(int axis=0; axis<DIMENSION; ++axis)
 	{
-		rect.m_min[axis] = a_min[axis];
-		rect.m_max[axis] = a_max[axis];
+		circle.m_min[axis] = a_min[axis];
+		circle.m_max[axis] = a_max[axis];
 	}
 
-	RemoveRect(&rect, a_dataId, &m_root);
+	RemoveCircle(&circle, a_dataId, &m_root);
 }
 
 
 RTREE_TEMPLATE
 	int RTREE_QUAL::Search(const ELEMTYPE center[DIMENSION], const ELEMTYPE R, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context)
 {
-	Rect rect;
+	Circle circle;
 
-	rect.R = R;
+	circle.R = R;
 
 	for(int axis=0; axis<DIMENSION; ++axis)
 	{
-		rect.center[axis] = center[axis];
+		circle.center[axis] = center[axis];
 	}
 
 	// NOTE: May want to return search result another way, perhaps returning the number of found elements here.
 
 	int foundCount = 0;
-	Search(m_root, &rect, foundCount, a_resultCallback, a_context);
+	Search(m_root, &circle, foundCount, a_resultCallback, a_context);
 
 	return foundCount;
 }
@@ -658,8 +658,8 @@ RTREE_TEMPLATE
 		{
 			Branch* curBranch = &a_node->m_branch[index];
 
-			a_stream.ReadArray(curBranch->m_rect.m_min, DIMENSION);
-			a_stream.ReadArray(curBranch->m_rect.m_max, DIMENSION);
+			a_stream.ReadArray(curBranch->m_circle.m_min, DIMENSION);
+			a_stream.ReadArray(curBranch->m_circle.m_max, DIMENSION);
 
 			curBranch->m_child = AllocNode();
 			LoadRec(curBranch->m_child, a_stream);
@@ -671,8 +671,8 @@ RTREE_TEMPLATE
 		{
 			Branch* curBranch = &a_node->m_branch[index];
 
-			a_stream.ReadArray(curBranch->m_rect.m_min, DIMENSION);
-			a_stream.ReadArray(curBranch->m_rect.m_max, DIMENSION);
+			a_stream.ReadArray(curBranch->m_circle.m_min, DIMENSION);
+			a_stream.ReadArray(curBranch->m_circle.m_max, DIMENSION);
 
 			a_stream.Read(curBranch->m_data);
 		}
@@ -738,8 +738,8 @@ RTREE_TEMPLATE
 		{
 			Branch* curBranch = &a_node->m_branch[index];
 
-			a_stream.WriteArray(curBranch->m_rect.m_min, DIMENSION);
-			a_stream.WriteArray(curBranch->m_rect.m_max, DIMENSION);
+			a_stream.WriteArray(curBranch->m_circle.m_min, DIMENSION);
+			a_stream.WriteArray(curBranch->m_circle.m_max, DIMENSION);
 
 			SaveRec(curBranch->m_child, a_stream);
 		}
@@ -750,8 +750,8 @@ RTREE_TEMPLATE
 		{
 			Branch* curBranch = &a_node->m_branch[index];
 
-			a_stream.WriteArray(curBranch->m_rect.m_min, DIMENSION);
-			a_stream.WriteArray(curBranch->m_rect.m_max, DIMENSION);
+			a_stream.WriteArray(curBranch->m_circle.m_min, DIMENSION);
+			a_stream.WriteArray(curBranch->m_circle.m_max, DIMENSION);
 
 			a_stream.Write(curBranch->m_data);
 		}
@@ -829,7 +829,7 @@ RTREE_TEMPLATE
 }
 
 
-// Allocate space for a node in the list used in DeletRect to
+// Allocate space for a node in the list used in DeletCircle to
 // store Nodes that are too empty.
 RTREE_TEMPLATE
 	typename RTREE_QUAL::ListNode* RTREE_QUAL::AllocListNode()
@@ -862,27 +862,27 @@ RTREE_TEMPLATE
 
 
 RTREE_TEMPLATE
-	void RTREE_QUAL::InitRect(Rect* a_rect)
+	void RTREE_QUAL::InitCircle(Circle* a_circle)
 {
 	for(int index = 0; index < DIMENSION; ++index)
 	{
-		a_rect->center[index] = (ELEMTYPE)0;
-		a_rect->R = RADIUS;
+		a_circle->center[index] = (ELEMTYPE)0;
+		a_circle->R = RADIUS;
 	}
 }
 
 
-// Inserts a new data rectangle into the index structure.
+// Inserts a new data circleangle into the index structure.
 // Recursively descends tree, propagates splits back up.
 // Returns 0 if node was not split.  Old node updated.
 // If node was split, returns 1 and sets the pointer pointed to by
 // new_node to point to the new node.  Old node updated to become one of two.
 // The level argument specifies the number of steps up from the leaf
-// level to insert; e.g. a data rectangle goes in at level = 0.
+// level to insert; e.g. a data circleangle goes in at level = 0.
 RTREE_TEMPLATE
-	bool RTREE_QUAL::InsertRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level)
+	bool RTREE_QUAL::InsertCircleRec(Circle* a_circle, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level)
 {
-	ASSERT(a_rect && a_node && a_newNode);
+	ASSERT(a_circle && a_node && a_newNode);
 	ASSERT(a_level >= 0 && a_level <= a_node->m_level);
 
 	int index;
@@ -892,24 +892,24 @@ RTREE_TEMPLATE
 	// Still above level for insertion, go down tree recursively
 	if(a_node->m_level > a_level)
 	{
-		index = PickBranch(a_rect, a_node);
-		if (!InsertRectRec(a_rect, a_id, a_node->m_branch[index].m_child, &otherNode, a_level))
+		index = PickBranch(a_circle, a_node);
+		if (!InsertCircleRec(a_circle, a_id, a_node->m_branch[index].m_child, &otherNode, a_level))
 		{
 			// Child was not split
-			a_node->m_branch[index].m_rect = CombineRect(a_rect, &(a_node->m_branch[index].m_rect));
+			a_node->m_branch[index].m_circle = CombineCircle(a_circle, &(a_node->m_branch[index].m_circle));
 			return false;
 		}
 		else // Child was split
 		{
-			a_node->m_branch[index].m_rect = NodeCover(a_node->m_branch[index].m_child);
+			a_node->m_branch[index].m_circle = NodeCover(a_node->m_branch[index].m_child);
 			branch.m_child = otherNode;
-			branch.m_rect = NodeCover(otherNode);
+			branch.m_circle = NodeCover(otherNode);
 			return AddBranch(&branch, a_node, a_newNode);
 		}
 	}
-	else if(a_node->m_level == a_level) // Have reached level for insertion. Add rect, split if necessary
+	else if(a_node->m_level == a_level) // Have reached level for insertion. Add circle, split if necessary
 	{
-		branch.m_rect = *a_rect;
+		branch.m_circle = *a_circle;
 		branch.m_child = (Node*) a_id;
 		// Child field of leaves contains id of data record
 		return AddBranch(&branch, a_node, a_newNode);
@@ -923,32 +923,32 @@ RTREE_TEMPLATE
 }
 
 
-// Insert a data rectangle into an index structure.
-// InsertRect provides for splitting the root;
+// Insert a data circleangle into an index structure.
+// InsertCircle provides for splitting the root;
 // returns 1 if root was split, 0 if it was not.
 // The level argument specifies the number of steps up from the leaf
-// level to insert; e.g. a data rectangle goes in at level = 0.
-// InsertRect2 does the recursion.
+// level to insert; e.g. a data circleangle goes in at level = 0.
+// InsertCircle2 does the recursion.
 //
 
 RTREE_TEMPLATE
-	bool RTREE_QUAL::InsertRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root, int a_level)
+	bool RTREE_QUAL::InsertCircle(Circle* a_circle, const DATATYPE& a_id, Node** a_root, int a_level)
 {
-	ASSERT(a_rect && a_root);
+	ASSERT(a_circle && a_root);
 	ASSERT(a_level >= 0 && a_level <= (*a_root)->m_level);
 
 	Node* newRoot;
 	Node* newNode;
 	Branch branch;
 
-	if(InsertRectRec(a_rect, a_id, *a_root, &newNode, a_level))  // Root split
+	if(InsertCircleRec(a_circle, a_id, *a_root, &newNode, a_level))  // Root split
 	{
 		newRoot = AllocNode();  // Grow tree taller and new root
 		newRoot->m_level = (*a_root)->m_level + 1;
-		branch.m_rect = NodeCover(*a_root);
+		branch.m_circle = NodeCover(*a_root);
 		branch.m_child = *a_root;
 		AddBranch(&branch, newRoot, NULL);
-		branch.m_rect = NodeCover(newNode);
+		branch.m_circle = NodeCover(newNode);
 		branch.m_child = newNode;
 		AddBranch(&branch, newRoot, NULL);
 		*a_root = newRoot;
@@ -959,30 +959,30 @@ RTREE_TEMPLATE
 }
 
 
-// Find the smallest rectangle that includes all rectangles in branches of a node.
+// Find the smallest circleangle that includes all circleangles in branches of a node.
 RTREE_TEMPLATE
-	typename RTREE_QUAL::Rect RTREE_QUAL::NodeCover(Node* a_node)
+	typename RTREE_QUAL::Circle RTREE_QUAL::NodeCover(Node* a_node)
 {
 	ASSERT(a_node);
 
 	int firstTime = true;
-	Rect rect;
-	InitRect(&rect);
+	Circle circle;
+	InitCircle(&circle);
 
 	for(int index = 0; index < a_node->m_count; ++index)
 	{
 		if(firstTime)
 		{
-			rect = a_node->m_branch[index].m_rect;
+			circle = a_node->m_branch[index].m_circle;
 			firstTime = false;
 		}
 		else
 		{
-			rect = CombineRect(&rect, &(a_node->m_branch[index].m_rect));
+			circle = CombineCircle(&circle, &(a_node->m_branch[index].m_circle));
 		}
 	}
 
-	return rect;
+	return circle;
 }
 
 
@@ -1029,14 +1029,14 @@ RTREE_TEMPLATE
 
 
 // Pick a branch.  Pick the one that will need the smallest increase
-// in area to accomodate the new rectangle.  This will result in the
-// least total area for the covering rectangles in the current node.
+// in area to accomodate the new circleangle.  This will result in the
+// least total area for the covering circleangles in the current node.
 // In case of a tie, pick the one which was smaller before, to get
 // the best resolution when searching.
 RTREE_TEMPLATE
-	int RTREE_QUAL::PickBranch(Rect* a_rect, Node* a_node)
+	int RTREE_QUAL::PickBranch(Circle* a_circle, Node* a_node)
 {
-	ASSERT(a_rect && a_node);
+	ASSERT(a_circle && a_node);
 
 	bool firstTime = true;
 	ELEMTYPEREAL increase;
@@ -1044,14 +1044,14 @@ RTREE_TEMPLATE
 	ELEMTYPEREAL area;
 	ELEMTYPEREAL bestArea;
 	int best;
-	Rect tempRect;
+	Circle tempCircle;
 
 	for(int index=0; index < a_node->m_count; ++index)
 	{
-		Rect* curRect = &a_node->m_branch[index].m_rect;
-		area = CalcRectVolume(curRect);
-		tempRect = CombineRect(a_rect, curRect);
-		increase = CalcRectVolume(&tempRect) - area;
+		Circle* curCircle = &a_node->m_branch[index].m_circle;
+		area = CalcCircleVolume(curCircle);
+		tempCircle = CombineCircle(a_circle, curCircle);
+		increase = CalcCircleVolume(&tempCircle) - area;
 		if((increase < bestIncr) || firstTime)
 		{
 			best = index;
@@ -1070,24 +1070,33 @@ RTREE_TEMPLATE
 }
 
 
-// Combine two rectangles into larger one containing both
+// Combine two circleangles into larger one containing both
 RTREE_TEMPLATE
-	typename RTREE_QUAL::Rect RTREE_QUAL::CombineRect(Rect* a_rectA, Rect* a_rectB)
+	typename RTREE_QUAL::Circle RTREE_QUAL::CombineCircle(Circle* a_circleA, Circle* a_circleB)
 {
-	ASSERT(a_rectA && a_rectB);
+	ASSERT(a_circleA && a_circleB);
 
-	Rect newRect;
+	Circle newCircle;
 
-	double d = getDis(a_rectA->center, a_rectB->center), k;
-	newRect.R = (a_rectA->R + a_rectB->R + d) / 2;
-	k = (newRect.R - a_rectB->R) / d;
-
-	for(int index = 0; index < DIMENSION; ++index)
+	double d = getDis(a_circleA->center, a_circleB->center), k;
+	newCircle.R = (a_circleA->R + a_circleB->R + d) / 2;
+	if (!d)
 	{
-		newRect.center[index] = a_rectB->center[index] + k * (a_rectA->center[index] - a_rectB->center[index]); 
+		for(int index = 0; index < DIMENSION; ++index)
+		{
+			newCircle.center[index] = a_circleB->center[index]; 
+		}
 	}
+	else
+	{
+		k = (newCircle.R - a_circleB->R) / d;
 
-	return newRect;
+		for(int index = 0; index < DIMENSION; ++index)
+		{
+			newCircle.center[index] = a_circleB->center[index] + k * (a_circleA->center[index] - a_circleB->center[index]); 
+		}
+	}
+	return newCircle;
 }
 
 
@@ -1125,9 +1134,9 @@ RTREE_TEMPLATE
 
 // Use one of the methods to calculate retangle volume
 RTREE_TEMPLATE
-	ELEMTYPEREAL RTREE_QUAL::CalcRectVolume(Rect* a_rect)
+	ELEMTYPEREAL RTREE_QUAL::CalcCircleVolume(Circle* a_circle)
 {
-	return (ELEMTYPEREAL)(pow(a_rect->R, DIMENSION));
+	return (ELEMTYPEREAL)(pow(a_circle->R, DIMENSION));
 }
 
 
@@ -1148,25 +1157,25 @@ RTREE_TEMPLATE
 	a_parVars->m_branchBuf[MAXNODES] = *a_branch;
 	a_parVars->m_branchCount = MAXNODES + 1;
 
-	// Calculate rect containing all in the set
-	a_parVars->m_coverSplit = a_parVars->m_branchBuf[0].m_rect;
+	// Calculate circle containing all in the set
+	a_parVars->m_coverSplit = a_parVars->m_branchBuf[0].m_circle;
 	for(int index=1; index < MAXNODES+1; ++index)
 	{
-		a_parVars->m_coverSplit = CombineRect(&a_parVars->m_coverSplit, &a_parVars->m_branchBuf[index].m_rect);
+		a_parVars->m_coverSplit = CombineCircle(&a_parVars->m_coverSplit, &a_parVars->m_branchBuf[index].m_circle);
 	}
-	a_parVars->m_coverSplitArea = CalcRectVolume(&a_parVars->m_coverSplit);
+	a_parVars->m_coverSplitArea = CalcCircleVolume(&a_parVars->m_coverSplit);
 
 	InitNode(a_node);
 }
 
 
 // Method #0 for choosing a partition:
-// As the seeds for the two groups, pick the two rects that would waste the
-// most area if covered by a single rectangle, i.e. evidently the worst pair
+// As the seeds for the two groups, pick the two circles that would waste the
+// most area if covered by a single circleangle, i.e. evidently the worst pair
 // to have in the same group.
 // Of the remaining, one at a time is chosen to be put in one of the two groups.
 // The one chosen is the one with the greatest difference in area expansion
-// depending on which group - the rect most strongly attracted to one group
+// depending on which group - the circle most strongly attracted to one group
 // and repelled from the other.
 // If one group gets too full (more would force other group to violate min
 // fill requirement) then other group gets the rest.
@@ -1191,11 +1200,11 @@ RTREE_TEMPLATE
 		{
 			if(!a_parVars->m_taken[index])
 			{
-				Rect* curRect = &a_parVars->m_branchBuf[index].m_rect;
-				Rect rect0 = CombineRect(curRect, &a_parVars->m_cover[0]);
-				Rect rect1 = CombineRect(curRect, &a_parVars->m_cover[1]);
-				ELEMTYPEREAL growth0 = CalcRectVolume(&rect0) - a_parVars->m_area[0];
-				ELEMTYPEREAL growth1 = CalcRectVolume(&rect1) - a_parVars->m_area[1];
+				Circle* curCircle = &a_parVars->m_branchBuf[index].m_circle;
+				Circle circle0 = CombineCircle(curCircle, &a_parVars->m_cover[0]);
+				Circle circle1 = CombineCircle(curCircle, &a_parVars->m_cover[1]);
+				ELEMTYPEREAL growth0 = CalcCircleVolume(&circle0) - a_parVars->m_area[0];
+				ELEMTYPEREAL growth1 = CalcCircleVolume(&circle1) - a_parVars->m_area[1];
 				ELEMTYPEREAL diff = growth1 - growth0;
 				if(diff >= 0)
 				{
@@ -1223,7 +1232,7 @@ RTREE_TEMPLATE
 		Classify(chosen, betterGroup, a_parVars);
 	}
 
-	// If one group too full, put remaining rects in the other
+	// If one group too full, put remaining circles in the other
 	if((a_parVars->m_count[0] + a_parVars->m_count[1]) < a_parVars->m_total)
 	{
 		if(a_parVars->m_count[0] >= a_parVars->m_total - a_parVars->m_minFill)
@@ -1275,15 +1284,15 @@ RTREE_TEMPLATE
 
 // Initialize a PartitionVars structure.
 RTREE_TEMPLATE
-	void RTREE_QUAL::InitParVars(PartitionVars* a_parVars, int a_maxRects, int a_minFill)
+	void RTREE_QUAL::InitParVars(PartitionVars* a_parVars, int a_maxCircles, int a_minFill)
 {
 	ASSERT(a_parVars);
 
 	a_parVars->m_count[0] = a_parVars->m_count[1] = 0;
 	a_parVars->m_area[0] = a_parVars->m_area[1] = (ELEMTYPEREAL)0;
-	a_parVars->m_total = a_maxRects;
+	a_parVars->m_total = a_maxCircles;
 	a_parVars->m_minFill = a_minFill;
-	for(int index=0; index < a_maxRects; ++index)
+	for(int index=0; index < a_maxCircles; ++index)
 	{
 		a_parVars->m_taken[index] = false;
 		a_parVars->m_partition[index] = -1;
@@ -1300,7 +1309,7 @@ RTREE_TEMPLATE
 
 	for(int index=0; index<a_parVars->m_total; ++index)
 	{
-		area[index] = CalcRectVolume(&a_parVars->m_branchBuf[index].m_rect);
+		area[index] = CalcCircleVolume(&a_parVars->m_branchBuf[index].m_circle);
 	}
 
 	worst = -a_parVars->m_coverSplitArea - 1;
@@ -1308,8 +1317,8 @@ RTREE_TEMPLATE
 	{
 		for(int indexB = indexA+1; indexB < a_parVars->m_total; ++indexB)
 		{
-			Rect oneRect = CombineRect(&a_parVars->m_branchBuf[indexA].m_rect, &a_parVars->m_branchBuf[indexB].m_rect);
-			waste = CalcRectVolume(&oneRect) - area[indexA] - area[indexB];
+			Circle oneCircle = CombineCircle(&a_parVars->m_branchBuf[indexA].m_circle, &a_parVars->m_branchBuf[indexB].m_circle);
+			waste = CalcCircleVolume(&oneCircle) - area[indexA] - area[indexB];
 			if(waste > worst)
 			{
 				worst = waste;
@@ -1335,31 +1344,31 @@ RTREE_TEMPLATE
 
 	if (a_parVars->m_count[a_group] == 0)
 	{
-		a_parVars->m_cover[a_group] = a_parVars->m_branchBuf[a_index].m_rect;
+		a_parVars->m_cover[a_group] = a_parVars->m_branchBuf[a_index].m_circle;
 	}
 	else
 	{
-		a_parVars->m_cover[a_group] = CombineRect(&a_parVars->m_branchBuf[a_index].m_rect, &a_parVars->m_cover[a_group]);
+		a_parVars->m_cover[a_group] = CombineCircle(&a_parVars->m_branchBuf[a_index].m_circle, &a_parVars->m_cover[a_group]);
 	}
-	a_parVars->m_area[a_group] = CalcRectVolume(&a_parVars->m_cover[a_group]);
+	a_parVars->m_area[a_group] = CalcCircleVolume(&a_parVars->m_cover[a_group]);
 	++a_parVars->m_count[a_group];
 }
 
 
-// Delete a data rectangle from an index structure.
-// Pass in a pointer to a Rect, the tid of the record, ptr to ptr to root node.
+// Delete a data circleangle from an index structure.
+// Pass in a pointer to a Circle, the tid of the record, ptr to ptr to root node.
 // Returns 1 if record not found, 0 if success.
-// RemoveRect provides for eliminating the root.
+// RemoveCircle provides for eliminating the root.
 RTREE_TEMPLATE
-	bool RTREE_QUAL::RemoveRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root)
+	bool RTREE_QUAL::RemoveCircle(Circle* a_circle, const DATATYPE& a_id, Node** a_root)
 {
-	ASSERT(a_rect && a_root);
+	ASSERT(a_circle && a_root);
 	ASSERT(*a_root);
 
 	Node* tempNode;
 	ListNode* reInsertList = NULL;
 
-	if(!RemoveRectRec(a_rect, a_id, *a_root, &reInsertList))
+	if(!RemoveCircleRec(a_circle, a_id, *a_root, &reInsertList))
 	{
 		// Found and deleted a data item
 		// Reinsert any branches from eliminated nodes
@@ -1369,7 +1378,7 @@ RTREE_TEMPLATE
 
 			for(int index = 0; index < tempNode->m_count; ++index)
 			{
-				InsertRect(&(tempNode->m_branch[index].m_rect),
+				InsertCircle(&(tempNode->m_branch[index].m_circle),
 					tempNode->m_branch[index].m_data,
 					a_root,
 					tempNode->m_level);
@@ -1400,28 +1409,28 @@ RTREE_TEMPLATE
 }
 
 
-// Delete a rectangle from non-root part of an index structure.
-// Called by RemoveRect.  Descends tree recursively,
+// Delete a circleangle from non-root part of an index structure.
+// Called by RemoveCircle.  Descends tree recursively,
 // merges branches on the way back up.
 // Returns 1 if record not found, 0 if success.
 RTREE_TEMPLATE
-	bool RTREE_QUAL::RemoveRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode)
+	bool RTREE_QUAL::RemoveCircleRec(Circle* a_circle, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode)
 {
-	ASSERT(a_rect && a_node && a_listNode);
+	ASSERT(a_circle && a_node && a_listNode);
 	ASSERT(a_node->m_level >= 0);
 
 	if(a_node->IsInternalNode())  // not a leaf node
 	{
 		for(int index = 0; index < a_node->m_count; ++index)
 		{
-			if(Overlap(a_rect, &(a_node->m_branch[index].m_rect)))
+			if(Overlap(a_circle, &(a_node->m_branch[index].m_circle)))
 			{
-				if(!RemoveRectRec(a_rect, a_id, a_node->m_branch[index].m_child, a_listNode))
+				if(!RemoveCircleRec(a_circle, a_id, a_node->m_branch[index].m_child, a_listNode))
 				{
 					if(a_node->m_branch[index].m_child->m_count >= MINNODES)
 					{
-						// child removed, just resize parent rect
-						a_node->m_branch[index].m_rect = NodeCover(a_node->m_branch[index].m_child);
+						// child removed, just resize parent circle
+						a_node->m_branch[index].m_circle = NodeCover(a_node->m_branch[index].m_child);
 					}
 					else
 					{
@@ -1450,14 +1459,14 @@ RTREE_TEMPLATE
 }
 
 
-// Decide whether two rectangles overlap.
+// Decide whether two circleangles overlap.
 RTREE_TEMPLATE
-	bool RTREE_QUAL::Overlap(Rect* a_rectA, Rect* a_rectB)
+	bool RTREE_QUAL::Overlap(Circle* a_circleA, Circle* a_circleB)
 {
-	ASSERT(a_rectA && a_rectB);
+	ASSERT(a_circleA && a_circleB);
 
-	double d = getDis(a_rectA->center, a_rectB->center);
-	if (d > (a_rectA->R + a_rectB->R))
+	double d = getDis(a_circleA->center, a_circleB->center);
+	if (d > (a_circleA->R + a_circleB->R))
 	{
 		return false;
 	}
@@ -1479,21 +1488,21 @@ RTREE_TEMPLATE
 }
 
 
-// Search in an index tree or subtree for all data retangles that overlap the argument rectangle.
+// Search in an index tree or subtree for all data retangles that overlap the argument circleangle.
 RTREE_TEMPLATE
-	bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context)
+	bool RTREE_QUAL::Search(Node* a_node, Circle* a_circle, int& a_foundCount, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context)
 {
 	ASSERT(a_node);
 	ASSERT(a_node->m_level >= 0);
-	ASSERT(a_rect);
+	ASSERT(a_circle);
 
 	if(a_node->IsInternalNode()) // This is an internal node in the tree
 	{
 		for(int index=0; index < a_node->m_count; ++index)
 		{
-			if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
+			if(Overlap(a_circle, &a_node->m_branch[index].m_circle))
 			{
-				if(!Search(a_node->m_branch[index].m_child, a_rect, a_foundCount, a_resultCallback, a_context))
+				if(!Search(a_node->m_branch[index].m_child, a_circle, a_foundCount, a_resultCallback, a_context))
 				{
 					return false; // Don't continue searching
 				}
@@ -1504,7 +1513,7 @@ RTREE_TEMPLATE
 	{
 		for(int index=0; index < a_node->m_count; ++index)
 		{
-			if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
+			if(Overlap(a_circle, &a_node->m_branch[index].m_circle))
 			{
 				DATATYPE& id = a_node->m_branch[index].m_data;
 

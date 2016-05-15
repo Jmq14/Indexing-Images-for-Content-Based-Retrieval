@@ -1,19 +1,19 @@
 //
 // Test.cpp
 //
-// This is a direct port of the C version of the RTree test program.
+// This is a dicircle port of the C version of the RTree test program.
 //
 
 #include <stdio.h>
 #include "RTree.h"
 
-struct Rect
+struct Circle
 {
-	Rect()  {
+	Circle()  {
 		R = RADIUS;
 	}
 
-	Rect(double a[])
+	Circle(double a[])
 	{
 		for (int i = 0; i < DIMENSION; i++)
 		{
@@ -29,7 +29,7 @@ struct Rect
 
 bool MySearchCallback(int id, void* arg) 
 {
-	printf("Hit data rect %d\n", id);
+	printf("Hit data circle %d\n", id);
 	return true; // keep going
 }
 
@@ -40,26 +40,24 @@ void main()
 	int n;
 	ifstream fin("color_feature.txt");
 	fin >> n;
-	n = 2500;
-	Rect *rects = new Rect[n];
+	Circle *circles = new Circle[n];
 	for (int i = 0; i < n; i++)
 	{
 		for (int j = 0; j < DIMENSION; j++)
 		{
-			fin >> rects[i].center[j];
+			fin >> circles[i].center[j];
 		}
 	}
-	printf("nrects = %d\n", n);
+	printf("ncircles = %d\n", n);
 
 	for(int i = 0; i < n; i++)
 	{
-		tree.Insert(rects[i].center, rects[i].R, i); // Note, all values including zero are fine in this version
-		cout << i << endl;
+		tree.Insert(circles[i].center, circles[i].R, i); // Note, all values including zero are fine in this version
 	}
 
 	double a[] = {6, 4, 10, 6, 6, 4, 10, 6, 0};
-	Rect search_rect(a); // search will find above rects that this one overlaps
+	Circle search_circle(a); // search will find above circles that this one overlaps
 
-	printf("Search resulted in %d hits\n", tree.Search(search_rect.center, search_rect.R, MySearchCallback, NULL));
-	delete []rects;
+	printf("Search resulted in %d hits\n", tree.Search(search_circle.center, search_circle.R + 2000, MySearchCallback, NULL));
+	delete []circles;
 }
