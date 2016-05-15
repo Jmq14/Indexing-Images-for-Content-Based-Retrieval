@@ -10,10 +10,16 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="RTree.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{5D5F01A6-EA9D-427C-A2A9-A9B1B298FE34}</ProjectGuid>
+    <ProjectGuid>{82D360B6-ABD9-494B-B7A6-90BAD2214C25}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>RtreeTest</RootNamespace>
+    <RootNamespace>RTree_Circle</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -75,12 +81,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\src\rtree_alternative_package\c++\RTree.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\src\rtree_alternative_package\c++\Test.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
