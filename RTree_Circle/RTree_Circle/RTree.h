@@ -15,7 +15,6 @@ using namespace std;
 
 
 #define DIMENSION  9
-#define RADIUS     3000
 
 #define ASSERT assert // RTree uses ASSERT( condition )
 #ifndef Min
@@ -99,7 +98,7 @@ public:
 	/// \param a_resultCallback Callback function to return result.  Callback should return 'true' to continue searching
 	/// \param a_context User context to pass as parameter to a_resultCallback
 	/// \return Returns the number of entries found
-	int Search(const ELEMTYPE center[DIMENSION], const ELEMTYPE R, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context);// 寻找距离搜索点R+RADIUS以内的点
+	int Search(const ELEMTYPE center[DIMENSION], const ELEMTYPE R, bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context);
 
 	/// Remove all entries from tree
 	void RemoveAll();
@@ -118,7 +117,6 @@ public:
 	/// Save tree contents to stream
 	bool Save(RTFileStream& a_stream);
 
-	double getDis(ELEMTYPE centerA[DIMENSION], ELEMTYPE centerB[DIMENSION]);
 	/// Iterator is not remove safe.
 	class Iterator
 	{
@@ -323,18 +321,18 @@ protected:
 	/// Variables for finding a split partition
 	struct PartitionVars
 	{
-		int m_partition[MAXNODES+1]; //记录各节点分组情况
+		int m_partition[MAXNODES+1];
 		int m_total;
 		int m_minFill;
-		int m_taken[MAXNODES+1]; //记录某节点是否已被分组
-		int m_count[2]; //某一组cover的矩形个数
-		Circle m_cover[2]; //某一组cover的矩形
-		ELEMTYPEREAL m_area[2]; //某一组cover的矩形面积
+		int m_taken[MAXNODES+1];
+		int m_count[2];
+		Circle m_cover[2];
+		ELEMTYPEREAL m_area[2];
 
-		Branch m_branchBuf[MAXNODES+1]; //节点branch缓存区
-		int m_branchCount; //结点个数
-		Circle m_coverSplit; //包括branch本身在内的矩形的大矩形
-		ELEMTYPEREAL m_coverSplitArea; //m_coverSplit的面积
+		Branch m_branchBuf[MAXNODES+1];
+		int m_branchCount;
+		Circle m_coverSplit;
+		ELEMTYPEREAL m_coverSplitArea;
 	}; 
 
 	Node* AllocNode();
@@ -498,7 +496,7 @@ RTREE_TEMPLATE
 
 	circle.R = R;
 
-	for(int axis = 0; axis < DIMENSION; ++axis)
+	for(int axis=0; axis<DIMENSION; ++axis)
 	{
 		circle.center[axis] = center[axis];
 	}
@@ -867,7 +865,7 @@ RTREE_TEMPLATE
 	for(int index = 0; index < DIMENSION; ++index)
 	{
 		a_circle->center[index] = (ELEMTYPE)0;
-		a_circle->R = RADIUS;
+		a_circle->R = 0;
 	}
 }
 
@@ -1079,21 +1077,28 @@ RTREE_TEMPLATE
 	Circle newCircle;
 
 	double d = getDis(a_circleA->center, a_circleB->center), k;
-	newCircle.R = (a_circleA->R + a_circleB->R + d) / 2;
-	if (!d)
+	if (d < a_circleA->R - a_circleB->R || d < a_circleB->R - a_circleA->R)
 	{
-		for(int index = 0; index < DIMENSION; ++index)
-		{
-			newCircle.center[index] = a_circleB->center[index]; 
-		}
+		newCircle.R = a_circleA->R > a_circleB->R ? a_circleA->R : a_circleB->R;
 	}
 	else
+	{
+		newCircle.R = (a_circleA->R + a_circleB->R + d) / 2;
+	}
+	if (d)
 	{
 		k = (newCircle.R - a_circleB->R) / d;
 
 		for(int index = 0; index < DIMENSION; ++index)
 		{
 			newCircle.center[index] = a_circleB->center[index] + k * (a_circleA->center[index] - a_circleB->center[index]); 
+		}
+	}
+	else
+	{
+		for(int index = 0; index < DIMENSION; ++index)
+		{
+			newCircle.center[index] = a_circleB->center[index]; 
 		}
 	}
 	return newCircle;
@@ -1533,8 +1538,8 @@ RTREE_TEMPLATE
 	return true; // Continue searching
 }
 
-RTREE_TEMPLATE
-	double RTREE_QUAL::getDis(ELEMTYPE centerA[DIMENSION], ELEMTYPE centerB[DIMENSION])
+
+double getDis(double centerA[DIMENSION], double centerB[DIMENSION])
 {
 	double d = 0;
 	for (int i = 0; i < DIMENSION; i++)
