@@ -4,9 +4,11 @@ path = './image/';
 img_path_list = dir(strcat(path,'*.JPEG')); 
 img_num = length(img_path_list);
 
-grpnum_R = 4;
-grpnum_G = 4;
-grpnum_B = 4;
+output = fopen('histogram.txt','wt');
+
+grpnum_R = 2;
+grpnum_G = 2;
+grpnum_B = 2;
 range_r = 256 / grpnum_R;
 range_g = 256 / grpnum_G;
 range_b = 256 / grpnum_B;
@@ -20,12 +22,10 @@ if (mod(256, grpnum_B) > 0)
     grpnum_B = grpnum_B+1;
 end
 
+feature = zeros(grpnum_R*grpnum_G*grpnum_B, 1);
 
-feature = zeros(img_num, grpnum_R*grpnum_G*grpnum_B);
-
-% feature extraction
 if img_num > 0
-    
+    fprintf(output, '%d\n', img_num);
     for k = 1 : img_num
         fprintf('%dth image\n', k);
         name = img_path_list(k).name;
@@ -34,37 +34,28 @@ if img_num > 0
         [m, n, c] = size(img);
         for i = 1:m
             for j = 1:n 
+               
                 r = fix(double(img(i,j,1))/range_r);
                 g = fix(double(img(i,j,2))/range_g);
                 b = fix(double(img(i,j,3))/range_b);
                 p = r*grpnum_G*grpnum_B + g*grpnum_B + b + 1;
-                feature(k, p) = feature(k, p)+1;
-            end
+                feature(p, 1) = feature(p, 1)+1;
                 if p > 1
-                    feature(k, p-1) = feature(k, p-1)+0.5;
+                    feature(p-1, 1) = feature(p-1,1)+0.5;
                 end
-                if p < length(feature(k,:))
-                    feature(k, p+1) = feature(k, p+1)+0.5;
+                if p < length(feature)
+                    feature(p+1, 1) = feature(p+1,1)+0.5;
                 end
+            end
         end
-        a = sum(feature(k,:));
-        for i = 1:length(feature(k,:))
-            feature(k,i) = feature(k,i)/a;
+        a = sum(feature(:,1));
+        for i = 1:length(feature)
+            feature(i) = feature(i)/a;
         end
+        fprintf(output, '%s', name);
+        fprintf(output, ' %f', feature);
+        fprintf(output, '\n');
     end
-end
-
-[COEFF, SCORE, LATENT] = pca(feature, 'NumComponents’,12);
-
-%Output File
-output = fopen('histogram_improved.txt','wt');
-fprintf(output, '%d\n', img_num);
-
-for k = 1 : img_num    
-    name = img_path_list(k).name;
-    fprintf(output, '%s', name);
-    fprintf(output, ' %f', SCORE(k,:));
-    fprintf(output, '\n');
 end
 
 fclose(output);
